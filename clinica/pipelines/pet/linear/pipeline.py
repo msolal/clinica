@@ -146,14 +146,28 @@ class PETLinear(PETPipeline):
                 )
             )
 
-        # T1w file:
-        t1w_files, t1w_errors = clinica_file_reader(
-            self.subjects, self.sessions, self.bids_directory, T1W_NII
-        )
-        if t1w_errors:
-            raise ClinicaBIDSError(
-                format_clinica_file_reader_errors(t1w_errors, T1W_NII)
+        if self.t1_bids_directory:
+            # T1w file from T1 BIDS directory
+            t1w_files, t1w_errors = clinica_file_reader(
+                self.subjects,
+                self.sessions,
+                self.t1_bids_directory,
+                T1W_NII,
             )
+            if t1w_errors:
+                raise ClinicaBIDSError(
+                    format_clinica_file_reader_errors(t1w_errors, T1W_NII)
+                )
+        else:
+            # T1w file:
+            t1w_files, t1w_errors = clinica_file_reader(
+                self.subjects, self.sessions, self.bids_directory, T1W_NII
+            )
+
+            if t1w_errors:
+                raise ClinicaBIDSError(
+                    format_clinica_file_reader_errors(t1w_errors, T1W_NII)
+                )
 
         # Inputs from t1-linear pipeline
         # T1w images registered
@@ -356,17 +370,17 @@ class PETLinear(PETPipeline):
         # 1.2 `ApplyTransforms` by *ANTS*. It uses nipype interface. MNI brain mask to T1w space
 
         ants_applytransform_reversed_node = npe.Node(
-             name="antsApplyTransformReverseMNItoT1w", interface=ants.ApplyTransforms()
+            name="antsApplyTransformReverseMNItoT1w", interface=ants.ApplyTransforms()
         )
         ants_applytransform_reversed_node.inputs.dimension = 3
-        ants_applytransform_reversed_node.inputs.invert_transform_flags=True
+        ants_applytransform_reversed_node.inputs.invert_transform_flags = True
         ants_applytransform_reversed_node.inputs.input_image = self.ref_brain_mask
 
         # 1.3 "ImageMath" by *ANTS*. It uses nipype interface. skull stripping using "AND" operator
         ants_extractbrain_node = npe.Node(
             name="antsMathImageBrainExtract", interface=ants.ImageMath()
         )
-        ants_extractbrain_node.inputs.operation="m"
+        ants_extractbrain_node.inputs.operation = "m"
 
         # 2. `RegistrationSynQuick` by *ANTS*. It uses nipype interface.
         ants_registration_node = npe.Node(
@@ -375,20 +389,20 @@ class PETLinear(PETPipeline):
         ## image dimension
         ants_registration_node.inputs.dimension = 3
         ## type of transform
-        ants_registration_node.inputs.transforms = ['Rigid']
+        ants_registration_node.inputs.transforms = ["Rigid"]
         ants_registration_node.inputs.transform_parameters = [(0.1,)]
         ## metrics, weights, sampling strategy
         ants_registration_node.inputs.metric = ["MI"]
         ants_registration_node.inputs.metric_weight = [1.0]
         ants_registration_node.inputs.radius_or_number_of_bins = [32]
-        ants_registration_node.inputs.sampling_strategy = ['Regular']
+        ants_registration_node.inputs.sampling_strategy = ["Regular"]
         ants_registration_node.inputs.sampling_percentage = [0.25]
         ## levels parameters
-        ants_registration_node.inputs.shrink_factors = [[8,4,2,1]]
-        ants_registration_node.inputs.smoothing_sigmas = [[3,2,1,0]]
+        ants_registration_node.inputs.shrink_factors = [[8, 4, 2, 1]]
+        ants_registration_node.inputs.smoothing_sigmas = [[3, 2, 1, 0]]
         ants_registration_node.inputs.sigma_units = ["vox"]
         ## convergence parameters
-        ants_registration_node.inputs.number_of_iterations = [[1000, 500,250,100]]
+        ants_registration_node.inputs.number_of_iterations = [[1000, 500, 250, 100]]
         ants_registration_node.inputs.convergence_threshold = [1e-6]
         ants_registration_node.inputs.convergence_window_size = [10]
         ## preprocessing
@@ -486,23 +500,23 @@ class PETLinear(PETPipeline):
                 (
                     self.input_node,
                     ants_applytransform_reversed_node,
-                    [("t1w_to_mni","transforms")],
+                    [("t1w_to_mni", "transforms")],
                 ),
                 (
                     self.input_node,
                     ants_applytransform_reversed_node,
-                    [("t1w","reference_image")],
+                    [("t1w", "reference_image")],
                 ),
                 # STEP 1.3 Extract brain
                 (
                     self.input_node,
                     ants_extractbrain_node,
-                    [("t1w","op1")],
+                    [("t1w", "op1")],
                 ),
                 (
                     ants_applytransform_reversed_node,
                     ants_extractbrain_node,
-                    [("output_image","op2")],
+                    [("output_image", "op2")],
                 ),
                 # STEP 2
                 (

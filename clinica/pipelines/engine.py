@@ -388,6 +388,7 @@ class Pipeline(Workflow):
         name: Optional[str] = None,
         ignore_dependencies: Optional[List[str]] = None,
         caps_name: Optional[str] = None,
+        t1_bids_directory: Optional[str] = None,
     ):
         """Init a Pipeline object.
 
@@ -438,6 +439,9 @@ class Pipeline(Workflow):
         self._overwrite_caps: bool = overwrite_caps
         self._bids_directory: Optional[Path] = (
             Path(bids_directory).absolute() if bids_directory else None
+        )
+        self._t1_bids_directory: Optional[Path] = (
+            Path(t1_bids_directory).absolute() if t1_bids_directory else None
         )
         self._caps_directory: Optional[Path] = (
             Path(caps_directory).absolute() if caps_directory else None
@@ -571,6 +575,10 @@ class Pipeline(Workflow):
     @property
     def bids_directory(self) -> Optional[Path]:
         return self._bids_directory
+
+    @property
+    def t1_bids_directory(self) -> Optional[Path]:
+        return self._t1_bids_directory
 
     @property
     def caps_directory(self) -> Optional[Path]:

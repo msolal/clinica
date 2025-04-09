@@ -28,6 +28,11 @@ pipeline_name = "pet-linear"
     is_flag=True,
     help="Save the PET image in the T1w space computed in the intermediate step of the pipeline",
 )
+@cli_param.option.option(
+    "--t1_bids_directory",
+    help="BIDS directory for the T1 images, if different from the BIDS directory",
+    default=None,
+)
 @cli_param.option.random_seed
 @cli_param.option_group.common_pipelines_options
 @cli_param.option.subjects_sessions_tsv
@@ -46,6 +51,7 @@ def cli(
     subjects_sessions_tsv: Optional[str] = None,
     working_directory: Optional[str] = None,
     n_procs: Optional[int] = None,
+    t1_bids_directory: Optional[str] = None,
 ) -> None:
     """Affine registration of PET images to the MNI standard space.
 
@@ -81,6 +87,7 @@ def cli(
         base_dir=working_directory,
         parameters=parameters,
         name=pipeline_name,
+        t1_bids_directory=t1_bids_directory,
     )
 
     exec_pipeline = (
