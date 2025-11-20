@@ -56,6 +56,7 @@ mkdocs-material = {version = ">=7.1.8", optional= true}
 pymdown-extensions = {version = "*", optional = true}
 attrs = ">=20.1.0"
 cattrs = "^1.9.0"
+setuptools = "<70"
 
 [tool.poetry.dev-dependencies]
 black = "*"
@@ -65,7 +66,7 @@ pytest = "*"
 pytest-timeout = "*"
 pytest-xdist = "*"
 pytest-cov = "^3.0.0"
-nipy = "^0.5.0"
+# nipy = "^0.5.0"
 
 [tool.poetry.extras]
 docs = [
