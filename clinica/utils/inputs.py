@@ -198,6 +198,7 @@ def find_sub_ses_pattern_path(
         pattern: define the pattern of the final file.
     """
     from os.path import join
+    from glob import glob
 
     if is_bids:
         origin_pattern = join(input_directory, subject, session)
@@ -205,7 +206,8 @@ def find_sub_ses_pattern_path(
         origin_pattern = join(input_directory, "subjects", subject, session)
 
     current_pattern = join(origin_pattern, "**/", pattern)
-    current_glob_found = insensitive_glob(current_pattern, recursive=True)
+    current_glob_found = glob(current_pattern, recursive=True)
+    # current_glob_found = insensitive_glob(current_pattern, recursive=True)
 
     # Error handling if more than 1 file are found, or when no file is found
     if len(current_glob_found) > 1:
@@ -304,6 +306,7 @@ def clinica_file_reader(
             that do not exists in the existing file path.
 
     """
+
     from multiprocessing import Manager
 
     from joblib import Parallel, delayed
