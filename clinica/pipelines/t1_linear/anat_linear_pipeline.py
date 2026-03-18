@@ -372,16 +372,16 @@ class AnatLinear(Pipeline):
                 (self.input_node, print_end_message, [("anat", "anat")]),
             ]
         )
-        if self.use_antspy:
-            self.connect(
-                [
-                    (
-                        image_id_node,
-                        n4biascorrection,
-                        [("image_id", "output_prefix")],
-                    ),
-                ]
-            )
+        # if self.use_antspy:
+            # self.connect(
+            #     [
+            #         (
+            #             image_id_node,
+            #             n4biascorrection,
+            #             [("image_id", "output_prefix")],
+            #         ),
+            #     ]
+            # )
         if not (self.parameters.get("uncropped_image")):
             self.connect(
                 [
