@@ -43,9 +43,7 @@ class PETLinear(PETPipeline):
 
         from clinica.utils.filemanip import extract_visits
         from clinica.utils.input_files import (
-            pet_linear_nii,
-            pet_linear_transformation_matrix,
-        )
+            pet_linear_nii, pet_linear_transformation_matrix)
         from clinica.utils.inputs import clinica_file_reader
 
         if not self.caps_directory.is_dir():
@@ -100,26 +98,23 @@ class PETLinear(PETPipeline):
             "registered_pet",
             "transform_mat",
             "registered_pet_in_t1w",
+            "quantification_crop",
         ]
 
     def _build_input_node(self):
         """Build and connect an input node to the pipeline."""
+        from pathlib import Path
+
         import nipype.interfaces.utility as nutil
         import nipype.pipeline.engine as npe
 
         from clinica.pipelines.pet.utils import get_suvr_mask
         from clinica.utils.exceptions import ClinicaBIDSError, ClinicaCAPSError
         from clinica.utils.image import get_mni_template
-        from clinica.utils.input_files import (
-            T1W_LINEAR,
-            T1W_LINEAR_CROPPED,
-            T1W_NII,
-            T1W_TO_MNI_TRANSFORM,
-        )
-        from clinica.utils.inputs import (
-            clinica_file_reader,
-            format_clinica_file_reader_errors,
-        )
+        from clinica.utils.input_files import (T1W_LINEAR, T1W_LINEAR_CROPPED,
+                                               T1W_NII, T1W_TO_MNI_TRANSFORM)
+        from clinica.utils.inputs import (clinica_file_reader,
+                                          format_clinica_file_reader_errors)
         from clinica.utils.stream import cprint
         from clinica.utils.ux import print_images_to_process
 
@@ -137,6 +132,25 @@ class PETLinear(PETPipeline):
             raise ClinicaBIDSError(
                 format_clinica_file_reader_errors(
                     pet_errors, self._get_pet_scans_query()
+                )
+            )
+
+        # Quantification files
+        quantification_files, quantification_errors = clinica_file_reader(
+            self.subjects,
+            self.sessions,
+            self.bids_directory,
+            information = {
+                "pattern": Path("pet")/ f"*trc-18FFDG_desc-quantification_dseg.nii*",
+                "description": "quantification",
+            }
+        )
+
+        if quantification_errors:
+            raise ClinicaBIDSError(
+                format_clinica_file_reader_errors(
+                    quantification_errors,
+                    Path("pet") / f"*trc-18FFDG_desc-quantification_dseg.nii*",
                 )
             )
 
@@ -187,6 +201,7 @@ class PETLinear(PETPipeline):
                 ("pet", pet_files),
                 ("t1w_to_mni", t1w_to_mni_transformation_files),
                 ("t1w_linear", t1w_linear_files),
+                ("quantification", quantification_files)
             ],
             synchronize=True,
             interface=nutil.IdentityInterface(fields=self.get_input_fields()),
@@ -197,6 +212,11 @@ class PETLinear(PETPipeline):
                 (read_input_node, self.input_node, [("pet", "pet")]),
                 (read_input_node, self.input_node, [("t1w_to_mni", "t1w_to_mni")]),
                 (read_input_node, self.input_node, [("t1w_linear", "t1w_linear")]),
+                (
+                    read_input_node,
+                    self.input_node,
+                    [("quantification", "quantification")],
+                ),
             ]
         )
 
@@ -220,6 +240,7 @@ class PETLinear(PETPipeline):
             "pet_to_mri_transformation_filename",
             "suvr_reference_region",
             "uncropped_image",
+            "quantification_bids_image_filename"
         ]
         if self.parameters.get("save_PETinT1w"):
             rename_file_node_inputs.append("pet_filename_in_t1w_raw")
@@ -230,6 +251,7 @@ class PETLinear(PETPipeline):
                     "pet_filename_caps",
                     "transformation_filename_caps",
                     "pet_filename_in_t1w_caps",
+                    "quantification_filename_caps"
                 ],
                 function=rename_into_caps_task,
             ),
@@ -267,6 +289,11 @@ class PETLinear(PETPipeline):
                     rename_files,
                     write_node,
                     [("transformation_filename_caps", "@transform_mat")],
+                ),
+                (
+                    rename_files,
+                    write_node,
+                    [("quantification_filename_caps", "@quantification_crop")],
                 ),
             ]
         )
@@ -310,13 +337,12 @@ class PETLinear(PETPipeline):
         import nipype.pipeline.engine as npe
         from nipype.interfaces import ants
 
-        from clinica.pipelines.tasks import crop_nifti_using_t1_mni_template_task
+        from clinica.pipelines.tasks import \
+            crop_nifti_using_t1_mni_template_task
 
-        from .tasks import (
-            clip_task,
-            perform_suvr_normalization_task,
-        )
-        from .utils import concatenate_transforms, init_input_node, print_end_pipeline
+        from .tasks import clip_task, perform_suvr_normalization_task
+        from .utils import (concatenate_transforms, init_input_node,
+                            print_end_pipeline)
 
         init_node = npe.Node(
             interface=nutil.Function(
@@ -358,6 +384,13 @@ class PETLinear(PETPipeline):
         # 3. `ApplyTransforms` by *ANTS*. It uses nipype interface. PET to MRI
         ants_applytransform_node = npe.Node(
             name="antsApplyTransformPET2MNI", interface=ants.ApplyTransforms()
+        )
+        ants_applytransform_node.inputs.dimension = 3
+        ants_applytransform_node.inputs.reference_image = self.ref_template
+
+        # 3b `ApplyTransforms` by *ANTS*. It uses nipype interface. quantification to MNI
+        ants_applytransform_node_bis = npe.Node(
+            name="antsApplyTransformQUANTI2MNI", interface=ants.ApplyTransforms()
         )
         ants_applytransform_node.inputs.dimension = 3
         ants_applytransform_node.inputs.reference_image = self.ref_template
@@ -419,6 +452,17 @@ class PETLinear(PETPipeline):
         )
         crop_nifti_node.inputs.output_path = self.base_dir
 
+        # 5b. Crop quantification image (using nifti). It uses custom interface, from utils file
+        crop_nifti_node_bis = npe.Node(
+            name="cropNiftiBis",
+            interface=nutil.Function(
+                function=crop_nifti_using_t1_mni_template_task,
+                input_names=["input_image", "output_path"],
+                output_names=["output_image"],
+            ),
+        )
+        crop_nifti_node_bis.inputs.output_path = self.base_dir
+
         # 6. Print end message
         print_end_message = npe.Node(
             interface=nutil.Function(
@@ -466,6 +510,18 @@ class PETLinear(PETPipeline):
                     ants_applytransform_node,
                     [("transforms_list", "transforms")],
                 ),
+                # STEP 3b
+                (
+                    self.input_node,
+                    ants_applytransform_node_bis,
+                    [("quantification", "input_image")],
+                ),
+                (
+                    concatenate_node,
+                    ants_applytransform_node_bis,
+                    [("transforms_list", "transforms")],
+                ),
+
                 # STEP 4
                 (
                     self.input_node,
@@ -521,9 +577,20 @@ class PETLinear(PETPipeline):
                         self.output_node,
                         [("output_image", "outfile_crop")],
                     ),
+                    # STEP 5b
+                    (
+                        ants_applytransform_node_bis,
+                        crop_nifti_node_bis,
+                        [("output_image", "input_image")],
+                    ),
+                    (
+                        crop_nifti_node_bis,
+                        self.output_node,
+                        [("output_image", "quantification_crop")],
+                    ),
                 ]
             )
-            last_node = crop_nifti_node
+            last_node = crop_nifti_node_bis
         # Case 2:  don't crop the image
         else:
             last_node = normalize_intensity_node

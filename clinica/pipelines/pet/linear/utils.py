@@ -150,6 +150,7 @@ def rename_into_caps(
     pet_bids_image_filename: Path,
     pet_preprocessed_image_filename: Path,
     pet_to_mri_transformation_filename: Path,
+    quantification_filename: Path,
     suvr_reference_region: Union[str, SUVRReferenceRegion],
     uncropped_image: bool,
     pet_filename_in_t1w_raw: Optional[Path] = None,
@@ -228,8 +229,9 @@ def rename_into_caps(
         pet_filename_in_t1w_caps = _rename_intermediate_pet_in_t1w_space_into_caps(
             bids_entities, pet_filename_in_t1w_raw
         )
+    quantification_filename_caps = pet_filename_caps.replace("_pet", "_desc-quantification_dseg")
 
-    return pet_filename_caps, transformation_filename_caps, pet_filename_in_t1w_caps
+    return pet_filename_caps, transformation_filename_caps, pet_filename_in_t1w_caps, quantification_filename_caps
 
 
 def _get_bids_entities_without_suffix(filename: Path, suffix: str) -> str:

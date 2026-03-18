@@ -34,6 +34,7 @@ def rename_into_caps_task(
     pet_bids_image_filename: str,
     pet_preprocessed_image_filename: str,
     pet_to_mri_transformation_filename: str,
+    quantification_filename: str,
     suvr_reference_region: str,
     uncropped_image: bool,
     pet_filename_in_t1w_raw: str = None,
@@ -51,10 +52,12 @@ def rename_into_caps_task(
         pet_filename_caps,
         transformation_filename_caps,
         pet_filename_in_t1w_caps,
+        quantification_filename_caps
     ) = rename_into_caps(
         Path(pet_bids_image_filename),
         Path(pet_preprocessed_image_filename),
         Path(pet_to_mri_transformation_filename),
+        Path(quantification_filename),
         suvr_reference_region,
         uncropped_image,
         pet_filename_in_t1w_raw,
@@ -66,4 +69,5 @@ def rename_into_caps_task(
         str(pet_filename_caps),
         str(transformation_filename_caps),
         pet_filename_in_t1w_caps,
+        str(quantification_filename_caps)
     )
