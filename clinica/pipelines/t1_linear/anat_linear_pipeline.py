@@ -77,11 +77,8 @@ class AnatLinear(Pipeline):
         visits.
         """
         from clinica.utils.filemanip import extract_visits
-        from clinica.utils.input_files import (
-            T1W_LINEAR,
-            T1W_LINEAR_CROPPED,
-            T1W_TO_MNI_TRANSFORM,
-        )
+        from clinica.utils.input_files import (T1W_LINEAR, T1W_LINEAR_CROPPED,
+                                               T1W_TO_MNI_TRANSFORM)
         from clinica.utils.inputs import clinica_file_reader
 
         if not self.caps_directory.is_dir():
@@ -189,13 +186,11 @@ class AnatLinear(Pipeline):
         from clinica.utils.nipype import container_from_filename, fix_join
 
         if self.name == "flair-linear":
-            from .anat_linear_utils import (
-                get_substitutions_datasink_flair as get_substitutions,
-            )
+            from .anat_linear_utils import \
+                get_substitutions_datasink_flair as get_substitutions
         else:
-            from .anat_linear_utils import (
-                get_substitutions_datasink_t1_linear as get_substitutions,
-            )
+            from .anat_linear_utils import \
+                get_substitutions_datasink_t1_linear as get_substitutions
 
         # Writing node
         write_node = npe.Node(name="WriteCaps", interface=DataSink())
@@ -257,13 +252,9 @@ class AnatLinear(Pipeline):
         from nipype.interfaces import ants
 
         from clinica.pipelines.t1_linear.tasks import (
-            run_ants_registration_task,
-            run_n4biasfieldcorrection_task,
-        )
+            run_ants_registration_task, run_n4biasfieldcorrection_task)
         from clinica.pipelines.tasks import (
-            crop_nifti_using_t1_mni_template_task,
-            get_filename_no_ext_task,
-        )
+            crop_nifti_using_t1_mni_template_task, get_filename_no_ext_task)
 
         from .anat_linear_utils import print_end_pipeline
 
@@ -354,12 +345,13 @@ class AnatLinear(Pipeline):
         self.connect(
             [
                 (self.input_node, image_id_node, [("anat", "filename")]),
-                (self.input_node, n4biascorrection, [("anat", "input_image")]),
-                (
-                    n4biascorrection,
-                    ants_registration_node,
-                    [("output_image", "moving_image")],
-                ),
+                # (self.input_node, n4biascorrection, [("anat", "input_image")]),
+                # (
+                #     n4biascorrection,
+                #     ants_registration_node,
+                #     [("output_image", "moving_image")],
+                # ),
+                (self.input_node, ants_registration_node, [("anat", "moving_image")]),
                 (
                     image_id_node,
                     ants_registration_node,
